@@ -1,60 +1,74 @@
 # Tecnoweb Email
 
-Proyecto Maven con Java 21. Solo contiene las cuatro clases de correo en
-`src/main/java/com/mycompany/tecnoweb/email/Pruebas`: PuntoDeEntrada,
-ClientePOP3, ClienteSMTP y ProcesadorComandos. No necesita PostgreSQL ni
-las clases de carpinteria. JavaMail interpreta POP3, SMTP y MIME.
+Sistema de selección de personal operado íntegramente mediante **correo electrónico (POP3 / SMTP)** y conectado a **PostgreSQL**. Permite gestionar usuarios, candidatos, consentimientos, empresas, cargos, pruebas de evaluación, ranking, informes en PDF y reportes estadísticos en CSV enviando comandos en el asunto del correo.
 
-## Ejecutar desde VS Code
+> Para consultar la lista completa de comandos disponibles por caso de uso, revisa [COMANDOS.md](COMANDOS.md).
 
-Abre la carpeta que contiene este pom.xml y ejecuta en PowerShell:
+---
+
+## Requisitos
+
+- **Java 21** (JDK 21)
+- **Maven**
+- **PostgreSQL 14 o superior**
+
+---
+
+## Cómo ejecutar el proyecto
+
+### 1. Crear la base de datos
+
+Crea la base de datos `talento` en PostgreSQL y carga el esquema inicial incluido en el proyecto:
+
+```powershell
+createdb -U postgres talento
+psql -U postgres -d talento -v ON_ERROR_STOP=1 -f sql/talento_schema.sql
+```
+
+*(También puedes crear la base de datos `talento` desde **pgAdmin 4** y ejecutar el archivo `sql/talento_schema.sql`).*
+
+### 2. Configurar credenciales
+
+Copia el archivo de ejemplo y completa tus datos de correo (POP3/SMTP) y de PostgreSQL:
 
 ```powershell
 Copy-Item correo.properties.example correo.properties
-code correo.properties
 ```
 
-Completa usuario, password y emisor. Revisa los servidores y puertos.
-Los valores de ejemplo corresponden al servidor del proyecto original,
-con POP3 110 y SMTP 25 sin TLS. Si tu cuenta usa TLS, configura seguridad
-`ssl` o `starttls` y sus puertos. Si requiere autenticacion SMTP, establece
-`smtp.auth=true` y completa smtp.usuario y smtp.password. No implementa OAuth2.
+Edita `correo.properties`:
+- `pop3.*` y `smtp.*`: servidor, puerto, usuario, contraseña y correo emisor.
+- `db.url`, `db.usuario` y `db.password`: conexión a tu base de datos `talento`.
 
-Despues de guardar la configuracion:
+### 3. Compilar y ejecutar
+
+Iniciar el servicio de escucha continua (revisa el buzón cada 10 segundos):
 
 ```powershell
 mvn compile exec:java
 ```
 
-Para revisar solo una vez:
+*(Presiona `Ctrl + C` para detenerlo).*
 
-```powershell
-mvn compile exec:java "-Dexec.args=--una-vez"
-```
+#### Opciones adicionales
 
-Envia desde otra cuenta un correo al emisor configurado, con uno de estos
-comandos en el cuerpo como texto sin formato:
+- **Revisar el buzón una sola vez y salir:**
 
-- `PING[]`: responde PONG.
-- `AYUDA[]`: lista los comandos.
-- `ECO[Hola mundo]`: responde con el texto indicado.
+  ```powershell
+  mvn compile exec:java "-Dexec.args=--una-vez"
+  ```
 
-Se ejecuta PuntoDeEntrada. Ctrl+C detiene el ciclo de revision.
+- **Probar un comando directamente en consola sin enviar correo:**
 
-## Comportamiento
+  ```powershell
+  mvn compile exec:java "-Dexec.args=--probar AYUDA[*]"
+  ```
 
-- Consulta el buzon cada 10 segundos (configurable).
-- No elimina mensajes. Guarda sus UID en `.correos-procesados` para evitar
-  responderlos nuevamente tras reiniciar. Requiere UIDL en el servidor POP3.
-- Procesa tambien mensajes antiguos en la primera ejecucion; usa un buzon de pruebas.
-- Si SMTP falla, reintenta en el siguiente ciclo sin marcar el mensaje como respondido.
-- Omite mensajes automaticos identificados con Auto-Submitted, reportes MIME
-  y mensajes enviados desde su propia cuenta.
-- Lee texto sin formato, incluso multipartes y codificado. Ignora adjuntos.
-  Para cuerpos exclusivamente HTML devuelve la ayuda.
-- No implementa operaciones de negocio ni autorizacion: los comandos devuelven texto.
-- Ejecuta una sola instancia. Si se interrumpe entre enviar y guardar el UID,
-  puede repetir la respuesta. Conserva el historial al reiniciar.
+---
 
-Agrega tus propios comandos en el switch de ProcesadorComandos.
-Las credenciales y el historial estan excluidos de Git.
+## Uso rápido por correo
+
+Envía un correo a la cuenta configurada colocando el comando en el **Asunto** con el formato `COMANDO["param1","param2",...]`. Por ejemplo:
+
+- `AYUDA["*"]` — Devuelve la lista de todos los comandos.
+- `LISPER["*"]` — Lista las personas registradas.
+- `INSPER["4715292","","SC","Juan Carlos","Perez Seras","2000-05-12","71055123"]` — Registra una persona.
